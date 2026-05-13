@@ -9,6 +9,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.NoSuchElementException;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -34,9 +37,30 @@ class ProductoServiceTest {
 	}
 
 	@Test
+	void procesarProducto_nombreBlanco_lanzaExcepcion() {
+		assertThrows(IllegalArgumentException.class, () ->
+				productoService.procesarProducto("   ", 10.0, 5, null, true, null)
+		);
+	}
+
+	@Test
 	void procesarProducto_precioNegativo_lanzaExcepcion() {
 		assertThrows(IllegalArgumentException.class, () ->
 				productoService.procesarProducto("Laptop", -1.0, 5, null, true, null)
+		);
+	}
+
+	@Test
+	void procesarProducto_precioExcesivo_lanzaExcepcion() {
+		assertThrows(IllegalArgumentException.class, () ->
+				productoService.procesarProducto("Laptop", 9999999.0, 5, null, true, null)
+		);
+	}
+
+	@Test
+	void procesarProducto_stockNegativo_lanzaExcepcion() {
+		assertThrows(IllegalArgumentException.class, () ->
+				productoService.procesarProducto("Laptop", 100.0, -1, null, true, null)
 		);
 	}
 
@@ -59,6 +83,14 @@ class ProductoServiceTest {
 	}
 
 	@Test
+	void buscar_idInexistente_lanzaExcepcion() {
+		when(repo.findById(99L)).thenReturn(Optional.empty());
+		assertThrows(NoSuchElementException.class, () ->
+				productoService.buscar(99L)
+		);
+	}
+
+	@Test
 	void getEstado_stockNull_retornaDesconocido() {
 		Producto p = new Producto();
 		p.setStock(null);
@@ -70,5 +102,12 @@ class ProductoServiceTest {
 		Producto p = new Producto();
 		p.setStock(0);
 		assertEquals("AGOTADO", p.getEstado());
+	}
+
+	@Test
+	void getEstado_stockBajo_retornaBajo() {
+		Producto p = new Producto();
+		p.setStock(3);
+		assertEquals("BAJO", p.getEstado());
 	}
 }
