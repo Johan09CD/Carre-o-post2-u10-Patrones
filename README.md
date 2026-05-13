@@ -1,5 +1,5 @@
-# Productos Service — Análisis SonarQube
-## Post-Contenido 1 — Patrones de Diseño de Software
+# Productos Service — Post-Contenido 2
+## Métricas de Calidad y SonarQube — Patrones de Diseño de Software
 
 ## Prerrequisitos
 - JDK 21
@@ -12,47 +12,60 @@
 # 1. Levantar SonarQube
 docker run -d --name sonarqube -p 9000:9000 -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true sonarqube:community
 
-# 2. Compilar y generar reporte JaCoCo
+# 2. Compilar, probar y generar reporte JaCoCo
 mvn clean verify
 
 # 3. Enviar análisis a SonarQube
 mvn sonar:sonar "-Dsonar.token=sqa_26fd636984bec37f8855d2c3f837993d5cf72b6a" "-Dsonar.host.url=http://127.0.0.1:9000"
 ```
 
-## Estado inicial del análisis
+## Quality Gate — Estándar Universidad
+Configurado en SonarQube con las siguientes condiciones:
+- Bugs es mayor que 0
+- Coverage es menor que 60%
+- Code Smells es mayor que 5
+- Líneas duplicadas (%) es mayor que 5%
 
-| Categoría        | Cantidad | Rating |
-|------------------|----------|--------|
-| Bugs             | X        | X      |
-| Vulnerabilidades | X        | X      |
-| Code Smells      | X        | X      |
-| Cobertura        | X%       | —      |
+## Comparativa antes y después de las correcciones
 
-## Hallazgos principales identificados
+| Categoría        | Antes (Post-1) | Después (Post-2) |
+|------------------|----------------|------------------|
+| Bugs             | 1              | 0                |
+| Code Smells      | 3+             | 2                |
+| Cobertura        | ~30%           | 60.3%            |
+| Duplicaciones    | 0.0%           | 0.0%             |
 
-### Bug 1: Retorno de null en búsqueda por ID
-- **Archivo:** ProductoService.java, línea 44
-- **Descripción:** El método `buscar()` retorna `null` cuando no encuentra el producto en lugar de lanzar una excepción, causando posibles NullPointerException.
-- **Severidad:** Major
+## Correcciones aplicadas
 
-### Bug 2: Campo nombre sin restricción de nulidad
-- **Archivo:** Producto.java, línea 8
-- **Descripción:** El campo `nombre` no tiene `@Column(nullable=false)`, permitiendo guardar productos sin nombre.
-- **Severidad:** Minor
+### Bug corregido: orElse(null)
+- **Archivo:** ProductoService.java
+- **Antes:** `return repo.findById(id).orElse(null)`
+- **Después:** lanza `NoSuchElementException` con mensaje descriptivo
 
-### Code Smell 1: Inyección de dependencias por campo
-- **Archivo:** ProductoService.java, línea 17
-- **Descripción:** Se usa `@Autowired` en campo en lugar de inyección por constructor, dificultando las pruebas unitarias.
+### Code Smell 1: Inyección por constructor
+- **Archivo:** ProductoService.java
+- **Antes:** `@Autowired` en campo
+- **Después:** inyección por constructor con campo `final`
 
-### Code Smell 2: Método con alta complejidad ciclomática
-- **Archivo:** ProductoService.java, línea 21
-- **Descripción:** `procesarProducto()` concentra múltiples validaciones en un solo método, aumentando su complejidad ciclomática.
+### Code Smell 2: isBlank() en lugar de equals("")
+- **Archivo:** ProductoService.java
+- **Antes:** `nombre.equals("")`
+- **Después:** `nombre.isBlank()`
 
-### Code Smell 3: Rama inalcanzable en getEstado()
-- **Archivo:** Producto.java, línea 29
-- **Descripción:** El último `return "DESCONOCIDO"` nunca se ejecuta porque todos los casos posibles ya fueron cubiertos por las condiciones anteriores.
+### Code Smell 3: Extracción de método validarDatos()
+- **Archivo:** ProductoService.java
+- **Antes:** método `procesarProducto()` con alta complejidad ciclomática
+- **Después:** validación extraída a método privado `validarDatos()`
 
 ## Capturas del dashboard
-![Dashboard Token](docs/token.png)
-![Dashboard SonarQube](docs/sonar-dashboard.png)
-![Detalle Hallazgos](docs/sonar-bugs.png)
+
+### Dashboard inicial (Post-Contenido 1)
+![Dashboard inicial](docs/sonar-dashboard.png)
+
+### Dashboard después de correcciones (Post-Contenido 2)
+![Dashboard corregido](docs/sonar-dashboard-post2.png)
+![Detalle análisis](docs/sonar-bugs-post2.png)
+
+## GitHub Actions
+El workflow en `.github/workflows/ci.yml` ejecuta automáticamente
+`mvn clean verify` en cada push a main.
